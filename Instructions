@@ -1,0 +1,191 @@
+
+The following guide outlines the streamlined process for ElevenLabs text-to-speech integration with single-attempt execution and no retries.
+
+### Single-Attempt Audio Generation Process
+
+```python
+def generate_audio(text, voice_id, model="eleven_multilingual_v2"):
+    """
+    Single-attempt audio generation with ElevenLabs API
+    Returns history_item_id or raises exception
+    """
+    response = api.generate_audio(
+        text=text,
+        voice_id=voice_id,
+        model=model
+    )
+    
+    if not response.history_item_id:
+        raise ValueError("No history_item_id in response")
+        
+    return response.history_item_id
+```
+
+
+## Voice Selection Guidelines
+
+### Primary Voice Categories
+
+1. **Narrative Voices**
+   - Professional documentaries
+   - Audiobooks
+   - Historical content
+
+2. **Conversational Voices**
+   - Dialogue
+   - Social media content
+   - Casual explanations
+
+3. **Professional Voices**
+   - Business presentations
+   - Technical documentation
+   - Educational content
+
+### Voice Selection Matrix
+
+| Content Type | Recommended Voice IDs | Characteristics |
+|--------------|---------------------|-----------------|
+| Technical    | v_id_tech_01        | Clear, precise  |
+| Narrative    | v_id_narr_02        | Engaging, warm  |
+| Professional | v_id_prof_03        | Authoritative   |
+
+## Implementation Process
+
+### 1. Initial Setup
+
+```python
+# Configuration
+MODELS = {
+    'default': 'eleven_multilingual_v2',
+    'english': 'eleven_English_v1',
+    'mono': 'eleven_monolingual_v1'
+}
+
+# Voice selection mapping
+VOICE_MAPPING = {
+    'technical': ['v_id_tech_01', 'v_id_tech_02'],
+    'narrative': ['v_id_narr_01', 'v_id_narr_02'],
+    'professional': ['v_id_prof_01', 'v_id_prof_02']
+}
+```
+
+### 2. Voice Selection Logic
+
+```python
+def select_voice(content_type, preference=None):
+    """
+    Select appropriate voice based on content type and preferences
+    """
+    if preference and preference in VOICE_MAPPING[content_type]:
+        return preference
+        
+    return random.choice(VOICE_MAPPING[content_type])
+```
+
+### 3. Error Handling
+
+```python
+class TTSError(Exception):
+    """Custom exception for TTS processing errors"""
+    pass
+
+def handle_tts_error(error):
+    """
+    Process TTS errors and provide user guidance
+    """
+    error_map = {
+        'AuthError': 'Authentication failed. Verify API credentials.',
+        'RateLimitError': 'Rate limit exceeded. Try again later.',
+        'ProcessingError': 'Audio processing failed. Contact support.'
+    }
+    
+    return error_map.get(
+        error.__class__.__name__,
+        'Unexpected error occurred. Use history_item_id for support.'
+    )
+```
+
+## User Communication Templates
+
+
+
+```
+Audio generation failed.
+Error: {error_message}
+Support reference: {history_item_id}
+
+Please contact support with the reference number above.
+```
+
+## Implementation Best Practices
+
+1. **Single Execution**
+   - Never retry failed attempts
+   - Always capture history_item_id
+   - Provide immediate user feedback
+
+2. **Voice Rotation**
+   - Implement voice cycling for variety
+   - Match voices to content context
+   - Honor user preferences when specified
+
+3. **Error Management**
+   - Log all errors with history_item_id
+   - Provide clear user guidance
+   - Include support contact information
+
+4. **URL Handling**
+   - Always provide plain text URLs
+   - Include access instructions
+   - Note potential processing delays
+
+## Production Implementation Example
+
+```python
+def process_tts_request(text, content_type, preference=None):
+    """
+    Complete TTS processing workflow
+    """
+    try:
+        # Select voice
+        voice_id = select_voice(content_type, preference)
+        
+        # Generate audio (single attempt)
+        history_item_id = generate_audio(text, voice_id)
+        
+        # Construct response
+        url = f"https://audio.com/phalorion/{history_item_id}/"
+        
+        return {
+            'status': 'success',
+            'history_item_id': history_item_id,
+            'url': url,
+            'message': 'Audio generation complete. Please allow a few minutes for processing.'
+        }
+        
+    except Exception as e:
+        error_message = handle_tts_error(e)
+        return {
+            'status': 'error',
+            'message': error_message,
+            'history_item_id': history_item_id if 'history_item_id' in locals() else None
+        }
+```
+
+## Support Procedures
+
+1. Always reference history_item_id in support requests
+2. Include timestamp of generation attempt
+3. Specify content type and selected voice
+4. Provide error message if available
+
+## Performance Monitoring
+
+- Track success/failure rates
+- Monitor average processing time
+- Record voice usage distribution
+- Log error frequency by type
+
+---
+
+Remember: This implementation prioritizes single-attempt execution and clear user communication. No retry logic is implemented by design.
