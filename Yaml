@@ -1,0 +1,254 @@
+
+openapi: 3.1.0
+info:
+  title: ElevenLabs API - Extended
+  description: API for interacting with ElevenLabs voice services, with enhanced error handling.
+  version: 1.1.0
+servers:
+  - url: https://api.elevenlabs.io/v1
+paths:
+  /voices:
+    get:
+      summary: Fetch available voice IDs
+      operationId: fetchVoiceIds
+      responses:
+        "200":
+          description: A list of available voice IDs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /text-to-speech/{voice_id}:
+    post:
+      summary: Convert text to speech with error handling
+      operationId: textToSpeechConversionWithErrorHandling
+      parameters:
+        - name: voice_id
+          in: path
+          required: true
+          description: Unique identifier for the voice
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TextToSpeechRequest"
+      responses:
+        "200":
+          description: Successful text-to-speech conversion
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        default:
+          description: Error occurred, triggering direct download
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectDownloadTrigger"
+  /history:
+    get:
+      summary: Fetch history of conversions with optional filters
+      operationId: fetchHistory
+      parameters:
+        - in: query
+          name: voice_id
+          description: Filter history by voice ID
+          schema:
+            type: string
+        - in: query
+          name: date_from
+          description: Start date for filtering history, in UNIX timestamp
+          schema:
+            type: integer
+        - in: query
+          name: date_to
+          description: End date for filtering history, in UNIX timestamp
+          schema:
+            type: integer
+        - in: query
+          name: char_count_change_from
+          description: Minimum character count change for filtering
+          schema:
+            type: integer
+        - in: query
+          name: char_count_change_to
+          description: Maximum character count change for filtering
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Filtered history of text-to-speech conversions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecordingResponse"
+  /history/download:
+    post:
+      summary: Download History Items
+      operationId: downloadHistoryItems
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                history_item_ids:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - history_item_ids
+      responses:
+        "200":
+          description: History items downloaded successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /history/{history_id}:
+    get:
+      summary: Get Audio From History Item
+      operationId: getAudioFromHistoryItem
+      parameters:
+        - name: history_item_id
+          in: path
+          required: true
+          description: History item ID to be used
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Audio content from the history item
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+components:
+  schemas:
+    TextToSpeechRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Text to be converted to speech
+        model_id:
+          type: string
+          description: Identifier for the speech model
+      required:
+        - text
+        - model_id
+    RecordingResponse:
+      type: object
+      properties:
+        history_item_id:
+          type: string
+          description: Unique identifier for the history item
+        request_id:
+          type: string
+          description: Identifier for the specific request
+        voice_id:
+          type: string
+          description: Voice identifier used in the request
+        model_id:
+          type: string
+          description: Model identifier used in the request
+        voice_name:
+          type: string
+          description: Name of the voice used
+        voice_category:
+          type: string
+          description: Category of the voice
+        text:
+          type: string
+          description: Text content used for TTS conversion
+        date_unix:
+          type: integer
+          description: UNIX timestamp of the recording
+        character_count_change_from:
+          type: integer
+          description: Character count change from original text
+        character_count_change_to:
+          type: integer
+          description: Character count change to original text
+        content_type:
+          type: string
+          description: Type of content
+        state:
+          type: string
+          description: State of the recording
+        settings:
+          type: object
+          properties:
+            similarity_boost:
+              type: number
+              description: Boost level for voice similarity
+            stability:
+              type: number
+              description: Stability setting for voice conversion
+            style:
+              type: number
+              description: Style setting for voice conversion
+            use_speaker_boost:
+              type: boolean
+              description: Flag to use speaker boost
+        feedback:
+          type: string
+          description: Feedback on the recording
+    DirectDownloadTrigger:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Message indicating an error has occurred
+        action:
+          type: string
+          description: Suggested action, e.g., direct download
+    Error:
+      type: object
+      properties:
+        errorCode:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
+  responses:
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+security:
+  - ApiKeyAuth: []
